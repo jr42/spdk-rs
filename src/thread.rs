@@ -357,6 +357,12 @@ pub struct FdGroup {
     owned: bool,
 }
 
+impl Debug for FdGroup {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "FdGroup({:p})", self.inner)
+    }
+}
+
 unsafe impl Send for FdGroup {}
 
 impl FdGroup {
