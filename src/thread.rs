@@ -10,9 +10,11 @@ use std::{
 use crate::{
     cpu_cores::{Cores, CpuMask},
     libspdk::{
-        spdk_get_thread, spdk_set_thread, spdk_thread, spdk_thread_create, spdk_thread_destroy,
-        spdk_thread_exit, spdk_thread_get_by_id, spdk_thread_get_id, spdk_thread_get_name,
-        spdk_thread_is_exited, spdk_thread_poll, spdk_thread_send_msg,
+        spdk_get_thread, spdk_interrupt_mode_enable, spdk_interrupt_mode_is_enabled,
+        spdk_set_thread, spdk_thread, spdk_thread_create, spdk_thread_destroy,
+        spdk_thread_exit, spdk_thread_get_by_id, spdk_thread_get_id,
+        spdk_thread_get_interrupt_fd, spdk_thread_get_name, spdk_thread_is_exited,
+        spdk_thread_poll, spdk_thread_send_msg, spdk_thread_set_interrupt_mode,
     },
 };
 
@@ -155,6 +157,49 @@ impl Thread {
     #[inline]
     pub fn poll(&self) {
         let _ = unsafe { spdk_thread_poll(self.as_ptr(), 0, 0) };
+    }
+
+    /// Polls the thread and returns the number of completions.
+    #[inline]
+    pub fn poll_counted(&self) -> i32 {
+        unsafe { spdk_thread_poll(self.as_ptr(), 0, 0) }
+    }
+
+    /// Switch the current SPDK thread between poll mode and interrupt mode.
+    ///
+    /// In interrupt mode, the thread's pollers are driven by epoll events
+    /// instead of busy-polling, dramatically reducing CPU usage when idle.
+    ///
+    /// # Safety
+    /// Must be called from within the context of this SPDK thread
+    /// (i.e., this thread must be set as the current thread).
+    /// `interrupt_mode_enable()` must have been called during init.
+    pub fn set_interrupt_mode(enable: bool) {
+        unsafe { spdk_thread_set_interrupt_mode(enable) }
+    }
+
+    /// Get the interrupt fd (epoll fd) for this thread.
+    ///
+    /// Returns the file descriptor that becomes ready when any of the
+    /// thread's interrupt file descriptors have events. Only meaningful
+    /// when the thread is in interrupt mode.
+    pub fn get_interrupt_fd(&self) -> i32 {
+        unsafe { spdk_thread_get_interrupt_fd(self.as_ptr()) }
+    }
+
+    /// Enable SPDK interrupt mode globally.
+    ///
+    /// Must be called once during initialization before any thread
+    /// can use `set_interrupt_mode()`.
+    ///
+    /// Returns 0 on success or -errno on failure.
+    pub fn interrupt_mode_enable() -> i32 {
+        unsafe { spdk_interrupt_mode_enable() }
+    }
+
+    /// Check if SPDK interrupt mode is globally enabled.
+    pub fn interrupt_mode_is_enabled() -> bool {
+        unsafe { spdk_interrupt_mode_is_enabled() }
     }
 
     /// TODO
