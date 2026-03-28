@@ -10,10 +10,12 @@ use std::{
 use crate::{
     cpu_cores::{Cores, CpuMask},
     libspdk::{
-        spdk_get_thread, spdk_interrupt_mode_enable, spdk_interrupt_mode_is_enabled,
-        spdk_set_thread, spdk_thread, spdk_thread_create, spdk_thread_destroy,
-        spdk_thread_exit, spdk_thread_get_by_id, spdk_thread_get_id,
-        spdk_thread_get_interrupt_fd, spdk_thread_get_name, spdk_thread_is_exited,
+        spdk_fd_group, spdk_fd_group_create, spdk_fd_group_destroy, spdk_fd_group_nest,
+        spdk_fd_group_unnest, spdk_fd_group_wait, spdk_get_thread,
+        spdk_interrupt_mode_enable, spdk_interrupt_mode_is_enabled, spdk_set_thread,
+        spdk_thread, spdk_thread_create, spdk_thread_destroy, spdk_thread_exit,
+        spdk_thread_get_by_id, spdk_thread_get_id, spdk_thread_get_interrupt_fd,
+        spdk_thread_get_interrupt_fd_group, spdk_thread_get_name, spdk_thread_is_exited,
         spdk_thread_poll, spdk_thread_send_msg, spdk_thread_set_interrupt_mode,
     },
 };
@@ -331,6 +333,77 @@ impl Thread {
             None => {
                 format!("Non-SPDK thread [core {}]", Cores::current())
             }
+        }
+    }
+
+    /// Get the interrupt fd_group for this thread.
+    ///
+    /// Returns a raw pointer to the thread's `spdk_fd_group`, which can
+    /// be nested into a reactor-level fd_group for hierarchical event
+    /// multiplexing. Only meaningful when interrupt mode is enabled.
+    pub fn get_interrupt_fd_group(&self) -> *mut spdk_fd_group {
+        unsafe { spdk_thread_get_interrupt_fd_group(self.as_ptr()) }
+    }
+}
+
+/// Wrapper for `spdk_fd_group` -- an event multiplexing group that
+/// aggregates file descriptors and supports hierarchical nesting.
+///
+/// Used by reactors to block until any nested thread has events,
+/// implementing SPDK's interrupt-driven reactor pattern.
+pub struct FdGroup {
+    inner: NonNull<spdk_fd_group>,
+    /// Whether this FdGroup owns the underlying pointer (should destroy on drop).
+    owned: bool,
+}
+
+unsafe impl Send for FdGroup {}
+
+impl FdGroup {
+    /// Create a new fd_group.
+    pub fn create() -> Result<Self, i32> {
+        let mut ptr: *mut spdk_fd_group = std::ptr::null_mut();
+        let rc = unsafe { spdk_fd_group_create(&mut ptr) };
+        if rc != 0 {
+            return Err(rc);
+        }
+        Ok(Self {
+            inner: NonNull::new(ptr).expect("spdk_fd_group_create returned null"),
+            owned: true,
+        })
+    }
+
+    /// Wait for events on the fd_group.
+    ///
+    /// `timeout` is in milliseconds. -1 blocks forever, 0 is non-blocking.
+    /// Returns the number of events processed.
+    pub fn wait(&self, timeout: i32) -> i32 {
+        unsafe { spdk_fd_group_wait(self.as_ptr(), timeout) }
+    }
+
+    /// Nest a child fd_group (typically a thread's fd_group) into this
+    /// parent fd_group. Events on the child will wake the parent's wait.
+    pub fn nest(&self, child: *mut spdk_fd_group) -> Result<(), i32> {
+        let rc = unsafe { spdk_fd_group_nest(self.as_ptr(), child) };
+        if rc != 0 { Err(rc) } else { Ok(()) }
+    }
+
+    /// Remove a previously nested child fd_group.
+    pub fn unnest(&self, child: *mut spdk_fd_group) -> Result<(), i32> {
+        let rc = unsafe { spdk_fd_group_unnest(self.as_ptr(), child) };
+        if rc != 0 { Err(rc) } else { Ok(()) }
+    }
+
+    /// Returns the raw pointer to the underlying `spdk_fd_group`.
+    pub fn as_ptr(&self) -> *mut spdk_fd_group {
+        self.inner.as_ptr()
+    }
+}
+
+impl Drop for FdGroup {
+    fn drop(&mut self) {
+        if self.owned {
+            unsafe { spdk_fd_group_destroy(self.as_ptr()) };
         }
     }
 }
