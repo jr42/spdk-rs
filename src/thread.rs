@@ -10,8 +10,10 @@ use std::{
 use crate::{
     cpu_cores::{Cores, CpuMask},
     libspdk::{
-        spdk_fd_group, spdk_fd_group_add, spdk_fd_group_create, spdk_fd_group_destroy,
-        spdk_fd_group_nest, spdk_fd_group_unnest, spdk_fd_group_wait, spdk_get_thread,
+        spdk_event_handler_opts, spdk_fd_group, spdk_fd_group_add, spdk_fd_group_add_ext,
+        spdk_fd_group_create, spdk_fd_group_destroy,
+        spdk_fd_group_get_default_event_handler_opts, spdk_fd_group_nest,
+        spdk_fd_group_unnest, spdk_fd_group_wait, spdk_get_thread,
         spdk_interrupt_mode_enable, spdk_interrupt_mode_is_enabled, spdk_set_thread,
         spdk_thread, spdk_thread_create, spdk_thread_destroy, spdk_thread_exit,
         spdk_thread_get_by_id, spdk_thread_get_id, spdk_thread_get_interrupt_fd,
@@ -346,6 +348,11 @@ impl Thread {
     }
 }
 
+/// fd_type value for eventfds: `fd_group_wait()` auto-drains these
+/// by reading the counter to 0 before invoking the callback.
+/// Matches `SPDK_FD_TYPE_EVENTFD` in `spdk/fd_group.h`.
+pub const FD_TYPE_EVENTFD: u32 = 0x1;
+
 /// Wrapper for `spdk_fd_group` -- an event multiplexing group that
 /// aggregates file descriptors and supports hierarchical nesting.
 ///
@@ -398,6 +405,44 @@ impl FdGroup {
             )
         };
         if rc != 0 { Err(rc) } else { Ok(()) }
+    }
+
+    /// Add a file descriptor with an explicit `fd_type`.
+    ///
+    /// Use `FD_TYPE_EVENTFD` for eventfds so that `fd_group_wait()`
+    /// automatically drains them (reads the counter to 0) before
+    /// calling the callback. Without this, level-triggered epoll
+    /// returns the fd on every call, causing a busy-spin.
+    pub fn add_with_fd_type(
+        &self,
+        efd: i32,
+        fn_: unsafe extern "C" fn(*mut c_void) -> i32,
+        arg: *mut c_void,
+        fd_type: u32,
+    ) -> Result<(), i32> {
+        let mut opts: spdk_event_handler_opts = unsafe { std::mem::zeroed() };
+        unsafe {
+            spdk_fd_group_get_default_event_handler_opts(
+                &mut opts,
+                std::mem::size_of::<spdk_event_handler_opts>() as u64,
+            );
+        }
+        opts.fd_type = fd_type;
+        let rc = unsafe {
+            spdk_fd_group_add_ext(
+                self.as_ptr(),
+                efd,
+                Some(fn_),
+                arg,
+                std::ptr::null(),
+                &mut opts,
+            )
+        };
+        if rc != 0 {
+            Err(rc)
+        } else {
+            Ok(())
+        }
     }
 
     /// Wait for events on the fd_group.
