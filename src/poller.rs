@@ -264,6 +264,19 @@ where
         drop(self);
     }
 
+    /// Deregisters the poller's auto-created interrupt fd, indicating
+    /// that interrupts are handled externally (e.g. via fd_group nesting).
+    pub fn register_interrupt_none(&self) {
+        assert!(self.inner().is_active());
+        unsafe {
+            spdk_poller_register_interrupt(
+                self.inner().inner_ptr,
+                None,
+                std::ptr::null_mut(),
+            );
+        }
+    }
+
     /// Pauses the poller.
     pub fn pause(&self) {
         assert!(self.inner().is_active());
