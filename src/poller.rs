@@ -142,16 +142,6 @@ where
             }
             None => unsafe { spdk_poller_register(poll_fn, self.as_ctx().0, self.interval) },
         };
-
-        // When interrupt mode is enabled, clean up the auto-created
-        // busy eventfd so it doesn't keep fd_group_wait from blocking.
-        // This matches the pattern used by NVMf transport and NVMe bdev.
-        if Thread::interrupt_mode_is_enabled() && !self.inner_ptr.is_null() {
-            unsafe {
-                spdk_poller_register_interrupt(self.inner_ptr, None, std::ptr::null_mut());
-            }
-        }
-
         self.state = PollerState::Waiting;
     }
 
