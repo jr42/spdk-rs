@@ -92,8 +92,8 @@ let
   # Derivation attributes
   #
   spdk = rec {
-    rev = "24775a47ebf16c066cea47e7da98bed2e4d1d798";
-    sha256 = "sha256-4FkDgIgnuETHZSwmz0SzvKju71NcD6aCmJYnh9OuBsM=";
+    rev = "8c2d24699fd9d6c9357ad0f8c58e035f34d1767e";
+    sha256 = "sha256-rib9ruxW8QqBpfgUcBqKZVFA2gYi5X0rnfVZZ/hlF9g=";
     pname = "libspdk${nameSuffix}";
     version = "25.05-${lib.substring 0 7 rev}";
     name = "${pname}-${version}";
@@ -107,7 +107,7 @@ let
     src = [
       (fetchFromGitHub {
         name = spdk.name;
-        owner = "openebs";
+        owner = "jr42";
         repo = "spdk";
         rev = spdk.rev;
         sha256 = spdk.sha256;
