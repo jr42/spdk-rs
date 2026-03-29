@@ -10,8 +10,8 @@ use std::{
 use crate::{
     cpu_cores::{Cores, CpuMask},
     libspdk::{
-        spdk_fd_group, spdk_fd_group_create, spdk_fd_group_destroy, spdk_fd_group_nest,
-        spdk_fd_group_unnest, spdk_fd_group_wait, spdk_get_thread,
+        spdk_fd_group, spdk_fd_group_add, spdk_fd_group_create, spdk_fd_group_destroy,
+        spdk_fd_group_nest, spdk_fd_group_unnest, spdk_fd_group_wait, spdk_get_thread,
         spdk_interrupt_mode_enable, spdk_interrupt_mode_is_enabled, spdk_set_thread,
         spdk_thread, spdk_thread_create, spdk_thread_destroy, spdk_thread_exit,
         spdk_thread_get_by_id, spdk_thread_get_id, spdk_thread_get_interrupt_fd,
