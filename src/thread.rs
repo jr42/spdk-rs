@@ -379,6 +379,27 @@ impl FdGroup {
         })
     }
 
+    /// Add a file descriptor to this fd_group with a callback.
+    ///
+    /// When `efd` becomes readable, `fn_` is called with `arg`.
+    pub fn add(
+        &self,
+        efd: i32,
+        fn_: unsafe extern "C" fn(*mut c_void) -> i32,
+        arg: *mut c_void,
+    ) -> Result<(), i32> {
+        let rc = unsafe {
+            spdk_fd_group_add(
+                self.as_ptr(),
+                efd,
+                Some(fn_),
+                arg,
+                std::ptr::null(),
+            )
+        };
+        if rc != 0 { Err(rc) } else { Ok(()) }
+    }
+
     /// Wait for events on the fd_group.
     ///
     /// `timeout` is in milliseconds. -1 blocks forever, 0 is non-blocking.
