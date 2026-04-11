@@ -92,8 +92,8 @@ let
   # Derivation attributes
   #
   spdk = rec {
-    rev = "bdff48d1ca0e81d6f948287358ae52a6c186cbf3";
-    sha256 = "sha256-lgby5btR8vabpYrMW4XaL+4cklQNQCl/+BjcvPGHv88=";
+    rev = "d1a7adab2b1bbbbccf0563824b9b32f3c799e372";
+    sha256 = "sha256-k60hUo8sAECdsYT2rVq+8nVQTqN5wpEyNnUxKsUxv1Y=";
     pname = "libspdk${nameSuffix}";
     version = "25.05-${lib.substring 0 7 rev}";
     name = "${pname}-${version}";
@@ -117,8 +117,6 @@ let
     ];
 
     sourceRoot = spdk.name;
-
-    patches = [ ./bdev-wait-for-examine-fix.patch ];
 
     devBuildInputs = with pkgs; [ astyle python3Packages.tabulate python3Packages.jinja2 nix-prefetch-github valgrind libsystemtap python3Packages.ijson python3Packages.magic ];
 
