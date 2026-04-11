@@ -118,6 +118,8 @@ let
 
     sourceRoot = spdk.name;
 
+    patches = [ ./bdev-wait-for-examine-fix.patch ];
+
     devBuildInputs = with pkgs; [ astyle python3Packages.tabulate python3Packages.jinja2 nix-prefetch-github valgrind libsystemtap python3Packages.ijson python3Packages.magic ];
 
     nativeBuildInputs = [
