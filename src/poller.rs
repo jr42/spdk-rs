@@ -13,7 +13,7 @@ use crate::{
     ffihelper::{AsStr, IntoCString},
     libspdk::{
         spdk_poller, spdk_poller_fn, spdk_poller_pause, spdk_poller_register,
-        spdk_poller_register_interrupt, spdk_poller_register_named, spdk_poller_resume,
+        spdk_poller_register_named, spdk_poller_resume,
         spdk_poller_unregister,
     },
     Thread,
@@ -262,19 +262,6 @@ where
     /// dropping the poller.
     pub fn stop(self) {
         drop(self);
-    }
-
-    /// Deregisters the poller's auto-created interrupt fd, indicating
-    /// that interrupts are handled externally (e.g. via fd_group nesting).
-    pub fn register_interrupt_none(&self) {
-        assert!(self.inner().is_active());
-        unsafe {
-            spdk_poller_register_interrupt(
-                self.inner().inner_ptr,
-                None,
-                std::ptr::null_mut(),
-            );
-        }
     }
 
     /// Pauses the poller.

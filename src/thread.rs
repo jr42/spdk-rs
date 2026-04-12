@@ -11,14 +11,13 @@ use crate::{
     cpu_cores::{Cores, CpuMask},
     libspdk::{
         spdk_event_handler_opts, spdk_fd_group, spdk_fd_group_add, spdk_fd_group_add_ext,
-        spdk_fd_group_create, spdk_fd_group_destroy,
-        spdk_fd_group_get_default_event_handler_opts, spdk_fd_group_nest,
-        spdk_fd_group_unnest, spdk_fd_group_wait, spdk_get_thread,
-        spdk_interrupt_mode_enable, spdk_interrupt_mode_is_enabled, spdk_set_thread,
-        spdk_thread, spdk_thread_create, spdk_thread_destroy, spdk_thread_exit,
-        spdk_thread_get_by_id, spdk_thread_get_id, spdk_thread_get_interrupt_fd,
-        spdk_thread_get_interrupt_fd_group, spdk_thread_get_name, spdk_thread_is_exited,
-        spdk_thread_poll, spdk_thread_send_msg, spdk_thread_set_interrupt_mode,
+        spdk_fd_group_create, spdk_fd_group_destroy, spdk_fd_group_get_default_event_handler_opts,
+        spdk_fd_group_nest, spdk_fd_group_unnest, spdk_fd_group_wait, spdk_get_thread,
+        spdk_interrupt_mode_enable, spdk_interrupt_mode_is_enabled, spdk_set_thread, spdk_thread,
+        spdk_thread_create, spdk_thread_destroy, spdk_thread_exit, spdk_thread_get_by_id,
+        spdk_thread_get_id, spdk_thread_get_interrupt_fd, spdk_thread_get_interrupt_fd_group,
+        spdk_thread_get_name, spdk_thread_is_exited, spdk_thread_poll, spdk_thread_send_msg,
+        spdk_thread_set_interrupt_mode,
     },
 };
 
@@ -161,12 +160,6 @@ impl Thread {
     #[inline]
     pub fn poll(&self) {
         let _ = unsafe { spdk_thread_poll(self.as_ptr(), 0, 0) };
-    }
-
-    /// Polls the thread and returns the number of completions.
-    #[inline]
-    pub fn poll_counted(&self) -> i32 {
-        unsafe { spdk_thread_poll(self.as_ptr(), 0, 0) }
     }
 
     /// Switch the current SPDK thread between poll mode and interrupt mode.
@@ -395,16 +388,12 @@ impl FdGroup {
         fn_: unsafe extern "C" fn(*mut c_void) -> i32,
         arg: *mut c_void,
     ) -> Result<(), i32> {
-        let rc = unsafe {
-            spdk_fd_group_add(
-                self.as_ptr(),
-                efd,
-                Some(fn_),
-                arg,
-                std::ptr::null(),
-            )
-        };
-        if rc != 0 { Err(rc) } else { Ok(()) }
+        let rc = unsafe { spdk_fd_group_add(self.as_ptr(), efd, Some(fn_), arg, std::ptr::null()) };
+        if rc != 0 {
+            Err(rc)
+        } else {
+            Ok(())
+        }
     }
 
     /// Add a file descriptor with an explicit `fd_type`.
@@ -457,13 +446,21 @@ impl FdGroup {
     /// parent fd_group. Events on the child will wake the parent's wait.
     pub fn nest(&self, child: *mut spdk_fd_group) -> Result<(), i32> {
         let rc = unsafe { spdk_fd_group_nest(self.as_ptr(), child) };
-        if rc != 0 { Err(rc) } else { Ok(()) }
+        if rc != 0 {
+            Err(rc)
+        } else {
+            Ok(())
+        }
     }
 
     /// Remove a previously nested child fd_group.
     pub fn unnest(&self, child: *mut spdk_fd_group) -> Result<(), i32> {
         let rc = unsafe { spdk_fd_group_unnest(self.as_ptr(), child) };
-        if rc != 0 { Err(rc) } else { Ok(()) }
+        if rc != 0 {
+            Err(rc)
+        } else {
+            Ok(())
+        }
     }
 
     /// Returns the raw pointer to the underlying `spdk_fd_group`.
